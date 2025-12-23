@@ -4,8 +4,6 @@ import {
   LayoutDashboard,
   Megaphone,
   Phone,
-  MessageSquare,
-  Upload,
   Settings,
   LogOut,
   Wifi,
@@ -17,8 +15,6 @@ const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/campaigns', label: 'Campaigns', icon: Megaphone },
   { path: '/calls', label: 'Anrufe', icon: Phone },
-  { path: '/prompts', label: 'Prompts', icon: MessageSquare },
-  { path: '/upload', label: 'Upload', icon: Upload },
   { path: '/agents', label: 'Agenten', icon: Bot },
   { path: '/settings', label: 'Einstellungen', icon: Settings },
 ]

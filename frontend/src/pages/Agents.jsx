@@ -1,19 +1,20 @@
-import { useState, useEffect } from 'react'
-import { useStore } from '../store'
+import { useState, useEffect, useRef } from 'react'
+import { api, useStore } from '../store'
+import { Upload, FileCode, X } from 'lucide-react'
 
 export default function Agents() {
-  const { token, addToast } = useStore()
+  const { addToast } = useStore()
   const [agents, setAgents] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editingAgent, setEditingAgent] = useState(null)
   const [formData, setFormData] = useState({
     name: '',
-    description: '',
-    codePath: ''
+    description: ''
   })
-
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+  const [selectedFile, setSelectedFile] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const fileInputRef = useRef(null)
 
   useEffect(() => {
     fetchAgents()
@@ -21,11 +22,8 @@ export default function Agents() {
 
   const fetchAgents = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/agents`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      const data = await res.json()
-      setAgents(data)
+      const res = await api.get('/agents')
+      setAgents(res.data)
     } catch (error) {
       addToast('Fehler beim Laden der Agenten', 'error')
     } finally {
@@ -36,42 +34,57 @@ export default function Agents() {
   const handleSubmit = async (e) => {
     e.preventDefault()
 
+    if (saving) return // Doppelklick verhindern
+
+    if (!editingAgent && !selectedFile) {
+      addToast('Bitte eine Agent-Datei auswählen', 'error')
+      return
+    }
+
+    setSaving(true)
     try {
-      const url = editingAgent
-        ? `${API_URL}/api/agents/${editingAgent.id}`
-        : `${API_URL}/api/agents`
+      const data = new FormData()
+      data.append('name', formData.name)
+      data.append('description', formData.description)
+      if (selectedFile) {
+        data.append('agentFile', selectedFile)
+      }
 
-      const res = await fetch(url, {
-        method: editingAgent ? 'PUT' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(formData)
-      })
-
-      if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.error || 'Fehler beim Speichern')
+      if (editingAgent) {
+        await api.put(`/agents/${editingAgent.id}`, data, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        })
+      } else {
+        await api.post('/agents', data, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        })
       }
 
       addToast(editingAgent ? 'Agent aktualisiert' : 'Agent erstellt', 'success')
-      setShowModal(false)
-      setEditingAgent(null)
-      setFormData({ name: '', description: '', codePath: '' })
+      closeModal()
       fetchAgents()
     } catch (error) {
-      addToast(error.message, 'error')
+      addToast(error.response?.data?.error || error.message, 'error')
+    } finally {
+      setSaving(false)
     }
+  }
+
+  const closeModal = () => {
+    setShowModal(false)
+    setEditingAgent(null)
+    setFormData({ name: '', description: '' })
+    setSelectedFile(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   const handleEdit = (agent) => {
     setEditingAgent(agent)
     setFormData({
       name: agent.name,
-      description: agent.description || '',
-      codePath: agent.code_path
+      description: agent.description || ''
     })
+    setSelectedFile(null)
     setShowModal(true)
   }
 
@@ -79,36 +92,37 @@ export default function Agents() {
     if (!confirm('Agent wirklich löschen?')) return
 
     try {
-      const res = await fetch(`${API_URL}/api/agents/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-
-      if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.error || 'Fehler beim Löschen')
-      }
-
+      await api.delete(`/agents/${id}`)
       addToast('Agent gelöscht', 'success')
       fetchAgents()
     } catch (error) {
-      addToast(error.message, 'error')
+      addToast(error.response?.data?.error || error.message, 'error')
     }
   }
 
   const handleToggle = async (id) => {
     try {
-      const res = await fetch(`${API_URL}/api/agents/${id}/toggle`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-
-      if (!res.ok) throw new Error('Fehler beim Umschalten')
-
+      await api.post(`/agents/${id}/toggle`)
       fetchAgents()
     } catch (error) {
-      addToast(error.message, 'error')
+      addToast(error.response?.data?.error || error.message, 'error')
     }
+  }
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      if (!file.name.endsWith('.js')) {
+        addToast('Nur JavaScript-Dateien (.js) erlaubt', 'error')
+        return
+      }
+      setSelectedFile(file)
+    }
+  }
+
+  const getFileName = (path) => {
+    if (!path) return '-'
+    return path.split('/').pop().split('\\').pop()
   }
 
   if (loading) {
@@ -126,7 +140,8 @@ export default function Agents() {
         <button
           onClick={() => {
             setEditingAgent(null)
-            setFormData({ name: '', description: '', codePath: '' })
+            setFormData({ name: '', description: '' })
+            setSelectedFile(null)
             setShowModal(true)
           }}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
@@ -144,7 +159,7 @@ export default function Agents() {
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Beschreibung</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Code-Pfad</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Datei</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Campaigns</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Aktionen</th>
@@ -169,9 +184,12 @@ export default function Agents() {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <code className="text-xs bg-gray-100 px-2 py-1 rounded truncate max-w-xs block">
-                      {agent.code_path}
-                    </code>
+                    <div className="flex items-center gap-2">
+                      <FileCode size={16} className="text-gray-400" />
+                      <code className="text-xs bg-gray-100 px-2 py-1 rounded">
+                        {getFileName(agent.code_path)}
+                      </code>
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
@@ -227,8 +245,8 @@ export default function Agents() {
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="z.B. SupportAgent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                  placeholder="z.B. SalesAgent"
                   required
                 />
               </div>
@@ -239,43 +257,77 @@ export default function Agents() {
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-gray-900"
                   rows={2}
                   placeholder="Kurze Beschreibung des Agenten..."
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Code-Pfad
+                  Agent-Datei (.js)
+                  {editingAgent && <span className="text-gray-400 ml-2">(optional bei Bearbeitung)</span>}
                 </label>
-                <input
-                  type="text"
-                  value={formData.codePath}
-                  onChange={(e) => setFormData({ ...formData, codePath: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
-                  placeholder="/Users/.../SupportAgent.js"
-                  required
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  Absoluter Pfad zur JavaScript-Datei des Agenten
-                </p>
+                <div className="mt-1">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".js"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                    id="agent-file"
+                  />
+                  {selectedFile ? (
+                    <div className="flex items-center gap-3 p-3 border border-green-300 bg-green-50 rounded-lg">
+                      <FileCode size={20} className="text-green-600" />
+                      <span className="flex-1 text-sm text-green-800 font-medium">
+                        {selectedFile.name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedFile(null)
+                          if (fileInputRef.current) fileInputRef.current.value = ''
+                        }}
+                        className="text-green-600 hover:text-green-800"
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
+                  ) : (
+                    <label
+                      htmlFor="agent-file"
+                      className="flex flex-col items-center gap-2 p-6 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors"
+                    >
+                      <Upload size={32} className="text-gray-400" />
+                      <span className="text-sm text-gray-600">
+                        Klicken zum Auswählen oder Datei hierher ziehen
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        Nur JavaScript-Dateien (.js)
+                      </span>
+                      {editingAgent && (
+                        <span className="text-xs text-blue-600 mt-1">
+                          Aktuelle Datei: {getFileName(editingAgent.code_path)}
+                        </span>
+                      )}
+                    </label>
+                  )}
+                </div>
               </div>
               <div className="flex justify-end gap-3 pt-4">
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowModal(false)
-                    setEditingAgent(null)
-                  }}
+                  onClick={closeModal}
                   className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
                 >
                   Abbrechen
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  disabled={saving}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {editingAgent ? 'Speichern' : 'Erstellen'}
+                  {saving ? 'Speichern...' : (editingAgent ? 'Speichern' : 'Erstellen')}
                 </button>
               </div>
             </form>
