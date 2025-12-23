@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { api } from '../store'
 import {
   Upload as UploadIcon,
@@ -18,7 +18,7 @@ export default function Upload() {
   const [result, setResult] = useState(null)
   const fileInputRef = useRef(null)
 
-  useState(() => {
+  useEffect(() => {
     loadCampaigns()
   }, [])
 
