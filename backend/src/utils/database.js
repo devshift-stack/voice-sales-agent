@@ -103,9 +103,14 @@ async function initDatabase() {
       CREATE TABLE IF NOT EXISTS settings (
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id) UNIQUE,
+        telephony_provider VARCHAR(50) DEFAULT 'twilio',
         twilio_account_sid VARCHAR(255),
         twilio_auth_token VARCHAR(255),
         twilio_phone_number VARCHAR(50),
+        sipgate_client_id VARCHAR(255),
+        sipgate_client_secret VARCHAR(255),
+        sipgate_phone_number VARCHAR(50),
+        sipgate_device_id VARCHAR(50) DEFAULT 'p0',
         elevenlabs_api_key VARCHAR(255),
         elevenlabs_voice_id VARCHAR(255),
         openai_api_key VARCHAR(255),
@@ -113,6 +118,17 @@ async function initDatabase() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
+    `);
+
+    // Sipgate-Spalten hinzufügen falls sie fehlen (für bestehende Datenbanken)
+    await client.query(`
+      DO $$ BEGIN
+        ALTER TABLE settings ADD COLUMN IF NOT EXISTS telephony_provider VARCHAR(50) DEFAULT 'twilio';
+        ALTER TABLE settings ADD COLUMN IF NOT EXISTS sipgate_client_id VARCHAR(255);
+        ALTER TABLE settings ADD COLUMN IF NOT EXISTS sipgate_client_secret VARCHAR(255);
+        ALTER TABLE settings ADD COLUMN IF NOT EXISTS sipgate_phone_number VARCHAR(50);
+        ALTER TABLE settings ADD COLUMN IF NOT EXISTS sipgate_device_id VARCHAR(50) DEFAULT 'p0';
+      END $$;
     `);
 
     // Indizes

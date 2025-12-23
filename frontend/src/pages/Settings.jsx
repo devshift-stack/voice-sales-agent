@@ -11,15 +11,21 @@ import {
   EyeOff,
   CheckCircle,
   AlertCircle,
-  RefreshCw
+  RefreshCw,
+  PhoneCall
 } from 'lucide-react'
 
 export default function Settings() {
   const { user } = useStore()
   const [settings, setSettings] = useState({
+    telephony_provider: 'twilio',
     twilio_account_sid: '',
     twilio_auth_token: '',
     twilio_phone_number: '',
+    sipgate_client_id: '',
+    sipgate_client_secret: '',
+    sipgate_phone_number: '',
+    sipgate_device_id: 'p0',
     elevenlabs_api_key: '',
     elevenlabs_voice_id: '',
     openai_api_key: '',
@@ -30,6 +36,8 @@ export default function Settings() {
   const [showSecrets, setShowSecrets] = useState({})
   const [testResults, setTestResults] = useState({})
   const [voices, setVoices] = useState([])
+  const [sipgateNumbers, setSipgateNumbers] = useState([])
+  const [sipgateDevices, setSipgateDevices] = useState([])
 
   useEffect(() => {
     loadSettings()
@@ -81,6 +89,24 @@ export default function Settings() {
     }
   }
 
+  const loadSipgateNumbers = async () => {
+    try {
+      const res = await api.get('/settings/sipgate/numbers')
+      setSipgateNumbers(res.data)
+    } catch (error) {
+      console.error('Error loading Sipgate numbers:', error)
+    }
+  }
+
+  const loadSipgateDevices = async () => {
+    try {
+      const res = await api.get('/settings/sipgate/devices')
+      setSipgateDevices(res.data)
+    } catch (error) {
+      console.error('Error loading Sipgate devices:', error)
+    }
+  }
+
   const toggleSecret = (key) => {
     setShowSecrets(prev => ({ ...prev, [key]: !prev[key] }))
   }
@@ -102,38 +128,205 @@ export default function Settings() {
       <h1 className="text-2xl font-bold mb-6">Einstellungen</h1>
 
       <div className="space-y-6">
-        {/* Twilio Settings */}
+        {/* Telephony Provider Selection */}
         <SettingsSection
-          icon={Phone}
-          title="Twilio"
-          description="Telefonie-Provider für Anrufe"
+          icon={PhoneCall}
+          title="Telefonie-Provider"
+          description="Wähle deinen Telefonie-Anbieter"
         >
-          <SettingInput
-            label="Account SID"
-            value={settings.twilio_account_sid}
-            onChange={(v) => updateSetting('twilio_account_sid', v)}
-            placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-          />
-          <SettingInput
-            label="Auth Token"
-            value={settings.twilio_auth_token}
-            onChange={(v) => updateSetting('twilio_auth_token', v)}
-            placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-            secret
-            showSecret={showSecrets.twilio_auth_token}
-            onToggleSecret={() => toggleSecret('twilio_auth_token')}
-          />
-          <SettingInput
-            label="Telefonnummer"
-            value={settings.twilio_phone_number}
-            onChange={(v) => updateSetting('twilio_phone_number', v)}
-            placeholder="+49..."
-          />
-          <TestButton
-            onClick={() => handleTest('twilio')}
-            result={testResults.twilio}
-          />
+          <div className="flex gap-4">
+            <label className={`flex-1 p-4 border rounded-lg cursor-pointer transition-colors ${
+              settings.telephony_provider === 'twilio'
+                ? 'border-blue-500 bg-blue-900/30'
+                : 'border-gray-600 hover:border-gray-500'
+            }`}>
+              <input
+                type="radio"
+                name="telephony_provider"
+                value="twilio"
+                checked={settings.telephony_provider === 'twilio'}
+                onChange={(e) => updateSetting('telephony_provider', e.target.value)}
+                className="sr-only"
+              />
+              <div className="flex items-center gap-3">
+                <div className={`w-4 h-4 rounded-full border-2 ${
+                  settings.telephony_provider === 'twilio'
+                    ? 'border-blue-500 bg-blue-500'
+                    : 'border-gray-500'
+                }`}>
+                  {settings.telephony_provider === 'twilio' && (
+                    <div className="w-2 h-2 bg-white rounded-full m-0.5"></div>
+                  )}
+                </div>
+                <div>
+                  <span className="font-medium">Twilio</span>
+                  <p className="text-sm text-gray-400">Globaler Cloud-Provider</p>
+                </div>
+              </div>
+            </label>
+            <label className={`flex-1 p-4 border rounded-lg cursor-pointer transition-colors ${
+              settings.telephony_provider === 'sipgate'
+                ? 'border-blue-500 bg-blue-900/30'
+                : 'border-gray-600 hover:border-gray-500'
+            }`}>
+              <input
+                type="radio"
+                name="telephony_provider"
+                value="sipgate"
+                checked={settings.telephony_provider === 'sipgate'}
+                onChange={(e) => updateSetting('telephony_provider', e.target.value)}
+                className="sr-only"
+              />
+              <div className="flex items-center gap-3">
+                <div className={`w-4 h-4 rounded-full border-2 ${
+                  settings.telephony_provider === 'sipgate'
+                    ? 'border-blue-500 bg-blue-500'
+                    : 'border-gray-500'
+                }`}>
+                  {settings.telephony_provider === 'sipgate' && (
+                    <div className="w-2 h-2 bg-white rounded-full m-0.5"></div>
+                  )}
+                </div>
+                <div>
+                  <span className="font-medium">Sipgate</span>
+                  <p className="text-sm text-gray-400">Deutscher VoIP-Anbieter</p>
+                </div>
+              </div>
+            </label>
+          </div>
         </SettingsSection>
+
+        {/* Twilio Settings */}
+        {settings.telephony_provider === 'twilio' && (
+          <SettingsSection
+            icon={Phone}
+            title="Twilio"
+            description="Telefonie-Provider für Anrufe"
+          >
+            <SettingInput
+              label="Account SID"
+              value={settings.twilio_account_sid}
+              onChange={(v) => updateSetting('twilio_account_sid', v)}
+              placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            />
+            <SettingInput
+              label="Auth Token"
+              value={settings.twilio_auth_token}
+              onChange={(v) => updateSetting('twilio_auth_token', v)}
+              placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              secret
+              showSecret={showSecrets.twilio_auth_token}
+              onToggleSecret={() => toggleSecret('twilio_auth_token')}
+            />
+            <SettingInput
+              label="Telefonnummer"
+              value={settings.twilio_phone_number}
+              onChange={(v) => updateSetting('twilio_phone_number', v)}
+              placeholder="+49..."
+            />
+            <TestButton
+              onClick={() => handleTest('twilio')}
+              result={testResults.twilio}
+            />
+          </SettingsSection>
+        )}
+
+        {/* Sipgate Settings */}
+        {settings.telephony_provider === 'sipgate' && (
+          <SettingsSection
+            icon={Phone}
+            title="Sipgate"
+            description="Deutscher VoIP-Anbieter"
+          >
+            <SettingInput
+              label="Client ID"
+              value={settings.sipgate_client_id}
+              onChange={(v) => updateSetting('sipgate_client_id', v)}
+              placeholder="xxxxxx-x-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx:third-party"
+            />
+            <SettingInput
+              label="Client Secret"
+              value={settings.sipgate_client_secret}
+              onChange={(v) => updateSetting('sipgate_client_secret', v)}
+              placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              secret
+              showSecret={showSecrets.sipgate_client_secret}
+              onToggleSecret={() => toggleSecret('sipgate_client_secret')}
+            />
+            <div className="flex gap-2 items-end">
+              <div className="flex-1">
+                <label className="block text-sm text-gray-400 mb-1">Telefonnummer</label>
+                {sipgateNumbers.length > 0 ? (
+                  <select
+                    value={settings.sipgate_phone_number}
+                    onChange={(e) => updateSetting('sipgate_phone_number', e.target.value)}
+                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="">Nummer wählen...</option>
+                    {sipgateNumbers.map(n => (
+                      <option key={n.id} value={n.number}>
+                        {n.number} {n.type && `(${n.type})`}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={settings.sipgate_phone_number}
+                    onChange={(e) => updateSetting('sipgate_phone_number', e.target.value)}
+                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-blue-500"
+                    placeholder="+49..."
+                  />
+                )}
+              </div>
+              <button
+                onClick={loadSipgateNumbers}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+                title="Nummern laden"
+              >
+                <RefreshCw size={18} />
+              </button>
+            </div>
+            <div className="flex gap-2 items-end">
+              <div className="flex-1">
+                <label className="block text-sm text-gray-400 mb-1">Device ID</label>
+                {sipgateDevices.length > 0 ? (
+                  <select
+                    value={settings.sipgate_device_id}
+                    onChange={(e) => updateSetting('sipgate_device_id', e.target.value)}
+                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="">Device wählen...</option>
+                    {sipgateDevices.map(d => (
+                      <option key={d.id} value={d.id}>
+                        {d.alias || d.id} ({d.type})
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={settings.sipgate_device_id}
+                    onChange={(e) => updateSetting('sipgate_device_id', e.target.value)}
+                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-blue-500"
+                    placeholder="p0"
+                  />
+                )}
+              </div>
+              <button
+                onClick={loadSipgateDevices}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+                title="Devices laden"
+              >
+                <RefreshCw size={18} />
+              </button>
+            </div>
+            <TestButton
+              onClick={() => handleTest('sipgate')}
+              result={testResults.sipgate}
+            />
+          </SettingsSection>
+        )}
 
         {/* ElevenLabs Settings */}
         <SettingsSection
