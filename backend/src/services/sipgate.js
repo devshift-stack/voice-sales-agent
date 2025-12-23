@@ -1,57 +1,33 @@
 /**
  * Sipgate API Integration
  * Dokumentation: https://developer.sipgate.io/
+ *
+ * Verwendet Personal Access Token (PAT) mit Basic Auth
  */
 
-let accessToken = null;
-let tokenExpiry = null;
+// Basic Auth Header erstellen
+function getAuthHeader() {
+  const tokenId = process.env.SIPGATE_TOKEN_ID;
+  const token = process.env.SIPGATE_TOKEN;
 
-// OAuth2 Token holen
-async function getAccessToken() {
-  const clientId = process.env.SIPGATE_CLIENT_ID;
-  const clientSecret = process.env.SIPGATE_CLIENT_SECRET;
-
-  if (!clientId || !clientSecret) {
+  if (!tokenId || !token) {
     throw new Error('Sipgate nicht konfiguriert');
   }
 
-  // Token noch gültig?
-  if (accessToken && tokenExpiry && Date.now() < tokenExpiry) {
-    return accessToken;
-  }
-
-  const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
-
-  const response = await fetch('https://api.sipgate.com/login/third-party/protocol/openid-connect/token', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Basic ${credentials}`,
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    body: 'grant_type=client_credentials'
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Sipgate Auth Error: ${error}`);
-  }
-
-  const data = await response.json();
-  accessToken = data.access_token;
-  tokenExpiry = Date.now() + (data.expires_in * 1000) - 60000; // 1 Minute Puffer
-
-  return accessToken;
+  const credentials = Buffer.from(`${tokenId}:${token}`).toString('base64');
+  return `Basic ${credentials}`;
 }
 
 // API Request Helper
 async function sipgateRequest(endpoint, method = 'GET', body = null) {
-  const token = await getAccessToken();
+  const authHeader = getAuthHeader();
 
   const options = {
     method,
     headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
+      'Authorization': authHeader,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
     }
   };
 
@@ -137,14 +113,7 @@ async function getCallHistory(limit = 50) {
   return sipgateRequest(`/history?types=CALL&limit=${limit}`);
 }
 
-// Token zurücksetzen (bei Credential-Änderung)
-function resetToken() {
-  accessToken = null;
-  tokenExpiry = null;
-}
-
 module.exports = {
-  getAccessToken,
   getAccountInfo,
   getPhoneNumbers,
   getDevices,
@@ -152,6 +121,5 @@ module.exports = {
   setupWebhook,
   hangupCall,
   sendSms,
-  getCallHistory,
-  resetToken
+  getCallHistory
 };

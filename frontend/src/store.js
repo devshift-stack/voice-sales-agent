@@ -9,6 +9,71 @@ const api = axios.create({
   baseURL: API_URL
 })
 
+// Toast Store (separate für Toasts)
+export const useToastStore = create((set, get) => ({
+  toasts: [],
+
+  addToast: (toast) => {
+    const id = Date.now()
+    const newToast = { id, ...toast }
+    set((state) => ({ toasts: [...state.toasts, newToast] }))
+
+    // Auto-remove nach 5 Sekunden
+    setTimeout(() => {
+      get().removeToast(id)
+    }, toast.duration || 5000)
+
+    return id
+  },
+
+  removeToast: (id) => {
+    set((state) => ({ toasts: state.toasts.filter(t => t.id !== id) }))
+  },
+
+  showError: (message, details = null) => {
+    get().addToast({
+      type: 'error',
+      title: 'Fehler',
+      message,
+      details,
+      duration: 8000
+    })
+  },
+
+  showSuccess: (message) => {
+    get().addToast({
+      type: 'success',
+      title: 'Erfolg',
+      message,
+      duration: 3000
+    })
+  },
+
+  showWarning: (message) => {
+    get().addToast({
+      type: 'warning',
+      title: 'Warnung',
+      message,
+      duration: 5000
+    })
+  }
+}))
+
+// Axios Error Interceptor
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const message = error.response?.data?.error || error.message || 'Unbekannter Fehler'
+    const details = error.response?.data?.code || error.code
+
+    // Toast anzeigen
+    useToastStore.getState().showError(message, details)
+
+    // Error weiter werfen für lokale Behandlung
+    return Promise.reject(error)
+  }
+)
+
 export const useStore = create(
   persist(
     (set, get) => ({

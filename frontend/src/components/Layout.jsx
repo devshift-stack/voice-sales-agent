@@ -9,7 +9,8 @@ import {
   Settings,
   LogOut,
   Wifi,
-  WifiOff
+  WifiOff,
+  Bot
 } from 'lucide-react'
 
 const navItems = [
@@ -18,6 +19,7 @@ const navItems = [
   { path: '/calls', label: 'Anrufe', icon: Phone },
   { path: '/prompts', label: 'Prompts', icon: MessageSquare },
   { path: '/upload', label: 'Upload', icon: Upload },
+  { path: '/agents', label: 'Agenten', icon: Bot },
   { path: '/settings', label: 'Einstellungen', icon: Settings },
 ]
 

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../utils/database');
 const sipgate = require('../services/sipgate');
+const vonage = require('../services/vonage');
 
 // Settings laden
 router.get('/', async (req, res) => {
@@ -18,12 +19,21 @@ router.get('/', async (req, res) => {
         twilio_account_sid: '',
         twilio_auth_token: '',
         twilio_phone_number: '',
-        sipgate_client_id: '',
-        sipgate_client_secret: '',
+        sipgate_token_id: '',
+        sipgate_token: '',
         sipgate_phone_number: '',
         sipgate_device_id: 'p0',
+        vonage_api_key: '',
+        vonage_api_secret: '',
+        vonage_application_id: '',
+        vonage_private_key: '',
+        vonage_phone_number: '',
+        tts_provider: 'azure',
         elevenlabs_api_key: '',
         elevenlabs_voice_id: '',
+        azure_speech_key: '',
+        azure_speech_region: 'germanywestcentral',
+        azure_voice_id: 'de-DE-ConradNeural',
         openai_api_key: '',
         openai_model: 'gpt-4'
       });
@@ -36,12 +46,21 @@ router.get('/', async (req, res) => {
       twilio_account_sid: settings.twilio_account_sid || '',
       twilio_auth_token: settings.twilio_auth_token ? '••••••••' : '',
       twilio_phone_number: settings.twilio_phone_number || '',
-      sipgate_client_id: settings.sipgate_client_id || '',
-      sipgate_client_secret: settings.sipgate_client_secret ? '••••••••' : '',
+      sipgate_token_id: settings.sipgate_token_id || '',
+      sipgate_token: settings.sipgate_token ? '••••••••' : '',
       sipgate_phone_number: settings.sipgate_phone_number || '',
       sipgate_device_id: settings.sipgate_device_id || 'p0',
+      vonage_api_key: settings.vonage_api_key || '',
+      vonage_api_secret: settings.vonage_api_secret ? '••••••••' : '',
+      vonage_application_id: settings.vonage_application_id || '',
+      vonage_private_key: settings.vonage_private_key ? '••••••••' : '',
+      vonage_phone_number: settings.vonage_phone_number || '',
+      tts_provider: settings.tts_provider || 'azure',
       elevenlabs_api_key: settings.elevenlabs_api_key ? '••••••••' : '',
       elevenlabs_voice_id: settings.elevenlabs_voice_id || '',
+      azure_speech_key: settings.azure_speech_key ? '••••••••' : '',
+      azure_speech_region: settings.azure_speech_region || 'germanywestcentral',
+      azure_voice_id: settings.azure_voice_id || 'de-DE-ConradNeural',
       openai_api_key: settings.openai_api_key ? '••••••••' : '',
       openai_model: settings.openai_model || 'gpt-4'
     });
@@ -59,12 +78,21 @@ router.put('/', async (req, res) => {
       twilio_account_sid,
       twilio_auth_token,
       twilio_phone_number,
-      sipgate_client_id,
-      sipgate_client_secret,
+      sipgate_token_id,
+      sipgate_token,
       sipgate_phone_number,
       sipgate_device_id,
+      vonage_api_key,
+      vonage_api_secret,
+      vonage_application_id,
+      vonage_private_key,
+      vonage_phone_number,
+      tts_provider,
       elevenlabs_api_key,
       elevenlabs_voice_id,
+      azure_speech_key,
+      azure_speech_region,
+      azure_voice_id,
       openai_api_key,
       openai_model
     } = req.body;
@@ -81,12 +109,21 @@ router.put('/', async (req, res) => {
     if (twilio_account_sid) updates.twilio_account_sid = twilio_account_sid;
     if (twilio_auth_token && !twilio_auth_token.includes('••')) updates.twilio_auth_token = twilio_auth_token;
     if (twilio_phone_number) updates.twilio_phone_number = twilio_phone_number;
-    if (sipgate_client_id) updates.sipgate_client_id = sipgate_client_id;
-    if (sipgate_client_secret && !sipgate_client_secret.includes('••')) updates.sipgate_client_secret = sipgate_client_secret;
+    if (sipgate_token_id) updates.sipgate_token_id = sipgate_token_id;
+    if (sipgate_token && !sipgate_token.includes('••')) updates.sipgate_token = sipgate_token;
     if (sipgate_phone_number) updates.sipgate_phone_number = sipgate_phone_number;
     if (sipgate_device_id) updates.sipgate_device_id = sipgate_device_id;
+    if (vonage_api_key) updates.vonage_api_key = vonage_api_key;
+    if (vonage_api_secret && !vonage_api_secret.includes('••')) updates.vonage_api_secret = vonage_api_secret;
+    if (vonage_application_id) updates.vonage_application_id = vonage_application_id;
+    if (vonage_private_key && !vonage_private_key.includes('••')) updates.vonage_private_key = vonage_private_key;
+    if (vonage_phone_number) updates.vonage_phone_number = vonage_phone_number;
+    if (tts_provider) updates.tts_provider = tts_provider;
     if (elevenlabs_api_key && !elevenlabs_api_key.includes('••')) updates.elevenlabs_api_key = elevenlabs_api_key;
     if (elevenlabs_voice_id) updates.elevenlabs_voice_id = elevenlabs_voice_id;
+    if (azure_speech_key && !azure_speech_key.includes('••')) updates.azure_speech_key = azure_speech_key;
+    if (azure_speech_region) updates.azure_speech_region = azure_speech_region;
+    if (azure_voice_id) updates.azure_voice_id = azure_voice_id;
     if (openai_api_key && !openai_api_key.includes('••')) updates.openai_api_key = openai_api_key;
     if (openai_model) updates.openai_model = openai_model;
 
@@ -94,21 +131,33 @@ router.put('/', async (req, res) => {
       // Insert
       await pool.query(
         `INSERT INTO settings (user_id, telephony_provider, twilio_account_sid, twilio_auth_token, twilio_phone_number,
-         sipgate_client_id, sipgate_client_secret, sipgate_phone_number, sipgate_device_id,
-         elevenlabs_api_key, elevenlabs_voice_id, openai_api_key, openai_model)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+         sipgate_token_id, sipgate_token, sipgate_phone_number, sipgate_device_id,
+         vonage_api_key, vonage_api_secret, vonage_application_id, vonage_private_key, vonage_phone_number,
+         tts_provider, elevenlabs_api_key, elevenlabs_voice_id,
+         azure_speech_key, azure_speech_region, azure_voice_id,
+         openai_api_key, openai_model)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)`,
         [
           req.user.id,
           updates.telephony_provider || 'twilio',
           updates.twilio_account_sid || '',
           updates.twilio_auth_token || '',
           updates.twilio_phone_number || '',
-          updates.sipgate_client_id || '',
-          updates.sipgate_client_secret || '',
+          updates.sipgate_token_id || '',
+          updates.sipgate_token || '',
           updates.sipgate_phone_number || '',
           updates.sipgate_device_id || 'p0',
+          updates.vonage_api_key || '',
+          updates.vonage_api_secret || '',
+          updates.vonage_application_id || '',
+          updates.vonage_private_key || '',
+          updates.vonage_phone_number || '',
+          updates.tts_provider || 'azure',
           updates.elevenlabs_api_key || '',
           updates.elevenlabs_voice_id || '',
+          updates.azure_speech_key || '',
+          updates.azure_speech_region || 'germanywestcentral',
+          updates.azure_voice_id || 'de-DE-ConradNeural',
           updates.openai_api_key || '',
           updates.openai_model || 'gpt-4'
         ]
@@ -139,14 +188,20 @@ router.put('/', async (req, res) => {
     if (updates.twilio_account_sid) process.env.TWILIO_ACCOUNT_SID = updates.twilio_account_sid;
     if (updates.twilio_auth_token) process.env.TWILIO_AUTH_TOKEN = updates.twilio_auth_token;
     if (updates.twilio_phone_number) process.env.TWILIO_PHONE_NUMBER = updates.twilio_phone_number;
-    if (updates.sipgate_client_id) process.env.SIPGATE_CLIENT_ID = updates.sipgate_client_id;
-    if (updates.sipgate_client_secret) {
-      process.env.SIPGATE_CLIENT_SECRET = updates.sipgate_client_secret;
-      sipgate.resetToken(); // Token zurücksetzen bei neuen Credentials
-    }
+    if (updates.sipgate_token_id) process.env.SIPGATE_TOKEN_ID = updates.sipgate_token_id;
+    if (updates.sipgate_token) process.env.SIPGATE_TOKEN = updates.sipgate_token;
     if (updates.sipgate_phone_number) process.env.SIPGATE_PHONE_NUMBER = updates.sipgate_phone_number;
     if (updates.sipgate_device_id) process.env.SIPGATE_DEVICE_ID = updates.sipgate_device_id;
+    if (updates.vonage_api_key) process.env.VONAGE_API_KEY = updates.vonage_api_key;
+    if (updates.vonage_api_secret) process.env.VONAGE_API_SECRET = updates.vonage_api_secret;
+    if (updates.vonage_application_id) process.env.VONAGE_APPLICATION_ID = updates.vonage_application_id;
+    if (updates.vonage_private_key) process.env.VONAGE_PRIVATE_KEY = updates.vonage_private_key;
+    if (updates.vonage_phone_number) process.env.VONAGE_PHONE_NUMBER = updates.vonage_phone_number;
+    if (updates.tts_provider) process.env.TTS_PROVIDER = updates.tts_provider;
     if (updates.elevenlabs_api_key) process.env.ELEVENLABS_API_KEY = updates.elevenlabs_api_key;
+    if (updates.azure_speech_key) process.env.AZURE_SPEECH_KEY = updates.azure_speech_key;
+    if (updates.azure_speech_region) process.env.AZURE_SPEECH_REGION = updates.azure_speech_region;
+    if (updates.azure_voice_id) process.env.AZURE_VOICE_ID = updates.azure_voice_id;
     if (updates.elevenlabs_voice_id) process.env.ELEVENLABS_VOICE_ID = updates.elevenlabs_voice_id;
     if (updates.openai_api_key) process.env.OPENAI_API_KEY = updates.openai_api_key;
 
@@ -275,18 +330,17 @@ router.get('/voices', async (req, res) => {
 router.post('/test/sipgate', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT sipgate_client_id, sipgate_client_secret FROM settings WHERE user_id = $1',
+      'SELECT sipgate_token_id, sipgate_token FROM settings WHERE user_id = $1',
       [req.user.id]
     );
 
-    if (result.rows.length === 0 || !result.rows[0].sipgate_client_id) {
+    if (result.rows.length === 0 || !result.rows[0].sipgate_token_id) {
       return res.status(400).json({ error: 'Sipgate nicht konfiguriert' });
     }
 
     // Temporär setzen für den Test
-    process.env.SIPGATE_CLIENT_ID = result.rows[0].sipgate_client_id;
-    process.env.SIPGATE_CLIENT_SECRET = result.rows[0].sipgate_client_secret;
-    sipgate.resetToken();
+    process.env.SIPGATE_TOKEN_ID = result.rows[0].sipgate_token_id;
+    process.env.SIPGATE_TOKEN = result.rows[0].sipgate_token;
 
     const accountInfo = await sipgate.getAccountInfo();
     res.json({ success: true, company: accountInfo.company });
@@ -300,16 +354,16 @@ router.post('/test/sipgate', async (req, res) => {
 router.get('/sipgate/numbers', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT sipgate_client_id, sipgate_client_secret FROM settings WHERE user_id = $1',
+      'SELECT sipgate_token_id, sipgate_token FROM settings WHERE user_id = $1',
       [req.user.id]
     );
 
-    if (result.rows.length === 0 || !result.rows[0].sipgate_client_id) {
+    if (result.rows.length === 0 || !result.rows[0].sipgate_token_id) {
       return res.status(400).json({ error: 'Sipgate nicht konfiguriert' });
     }
 
-    process.env.SIPGATE_CLIENT_ID = result.rows[0].sipgate_client_id;
-    process.env.SIPGATE_CLIENT_SECRET = result.rows[0].sipgate_client_secret;
+    process.env.SIPGATE_TOKEN_ID = result.rows[0].sipgate_token_id;
+    process.env.SIPGATE_TOKEN = result.rows[0].sipgate_token;
 
     const numbers = await sipgate.getPhoneNumbers();
     res.json(numbers);
@@ -323,21 +377,103 @@ router.get('/sipgate/numbers', async (req, res) => {
 router.get('/sipgate/devices', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT sipgate_client_id, sipgate_client_secret FROM settings WHERE user_id = $1',
+      'SELECT sipgate_token_id, sipgate_token FROM settings WHERE user_id = $1',
       [req.user.id]
     );
 
-    if (result.rows.length === 0 || !result.rows[0].sipgate_client_id) {
+    if (result.rows.length === 0 || !result.rows[0].sipgate_token_id) {
       return res.status(400).json({ error: 'Sipgate nicht konfiguriert' });
     }
 
-    process.env.SIPGATE_CLIENT_ID = result.rows[0].sipgate_client_id;
-    process.env.SIPGATE_CLIENT_SECRET = result.rows[0].sipgate_client_secret;
+    process.env.SIPGATE_TOKEN_ID = result.rows[0].sipgate_token_id;
+    process.env.SIPGATE_TOKEN = result.rows[0].sipgate_token;
 
     const devices = await sipgate.getDevices();
     res.json(devices);
   } catch (error) {
     console.error('Sipgate Devices Error:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Azure TTS testen
+router.post('/test/azure', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT azure_speech_key, azure_speech_region FROM settings WHERE user_id = $1',
+      [req.user.id]
+    );
+
+    if (result.rows.length === 0 || !result.rows[0].azure_speech_key) {
+      return res.status(400).json({ error: 'Azure Speech nicht konfiguriert' });
+    }
+
+    process.env.AZURE_SPEECH_KEY = result.rows[0].azure_speech_key;
+    process.env.AZURE_SPEECH_REGION = result.rows[0].azure_speech_region || 'germanywestcentral';
+
+    const azureTts = require('../services/azure-tts');
+    const testResult = await azureTts.testConnection();
+    res.json({ success: true, region: testResult.region });
+  } catch (error) {
+    console.error('Azure TTS Test Error:', error);
+    res.status(400).json({ error: error.message || 'Azure Speech-Verbindung fehlgeschlagen' });
+  }
+});
+
+// Azure TTS Stimmen abrufen
+router.get('/azure/voices', async (req, res) => {
+  try {
+    const azureTts = require('../services/azure-tts');
+    const voices = await azureTts.getVoices();
+    res.json(voices);
+  } catch (error) {
+    console.error('Azure Voices Error:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Vonage testen
+router.post('/test/vonage', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT vonage_api_key, vonage_api_secret FROM settings WHERE user_id = $1',
+      [req.user.id]
+    );
+
+    if (result.rows.length === 0 || !result.rows[0].vonage_api_key) {
+      return res.status(400).json({ error: 'Vonage nicht konfiguriert' });
+    }
+
+    process.env.VONAGE_API_KEY = result.rows[0].vonage_api_key;
+    process.env.VONAGE_API_SECRET = result.rows[0].vonage_api_secret;
+
+    const accountInfo = await vonage.getAccountInfo();
+    res.json({ success: true, balance: accountInfo.value });
+  } catch (error) {
+    console.error('Vonage Test Error:', error);
+    res.status(400).json({ error: error.message || 'Vonage-Verbindung fehlgeschlagen' });
+  }
+});
+
+// Vonage Telefonnummern abrufen
+router.get('/vonage/numbers', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT vonage_api_key, vonage_api_secret FROM settings WHERE user_id = $1',
+      [req.user.id]
+    );
+
+    if (result.rows.length === 0 || !result.rows[0].vonage_api_key) {
+      return res.status(400).json({ error: 'Vonage nicht konfiguriert' });
+    }
+
+    process.env.VONAGE_API_KEY = result.rows[0].vonage_api_key;
+    process.env.VONAGE_API_SECRET = result.rows[0].vonage_api_secret;
+
+    const numbers = await vonage.getPhoneNumbers();
+    res.json(numbers);
+  } catch (error) {
+    console.error('Vonage Numbers Error:', error);
     res.status(400).json({ error: error.message });
   }
 });

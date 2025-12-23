@@ -20,13 +20,30 @@ async function initDatabase() {
       )
     `);
 
+    // Agents Tabelle (Agenten-Bibliothek)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS agents (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        code_path TEXT NOT NULL,
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Campaigns Tabelle
     await client.query(`
       CREATE TABLE IF NOT EXISTS campaigns (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         status VARCHAR(50) DEFAULT 'paused',
-        prompt_id INTEGER,
+        agent_id INTEGER,
+        language VARCHAR(10) DEFAULT 'de-DE',
+        system_prompt TEXT,
+        greeting TEXT,
+        closing_script TEXT,
         schedule_start TIME,
         schedule_end TIME,
         schedule_days VARCHAR(50),
@@ -107,12 +124,21 @@ async function initDatabase() {
         twilio_account_sid VARCHAR(255),
         twilio_auth_token VARCHAR(255),
         twilio_phone_number VARCHAR(50),
-        sipgate_client_id VARCHAR(255),
-        sipgate_client_secret VARCHAR(255),
+        sipgate_token_id VARCHAR(255),
+        sipgate_token VARCHAR(255),
         sipgate_phone_number VARCHAR(50),
         sipgate_device_id VARCHAR(50) DEFAULT 'p0',
+        vonage_api_key VARCHAR(255),
+        vonage_api_secret VARCHAR(255),
+        vonage_application_id VARCHAR(255),
+        vonage_private_key TEXT,
+        vonage_phone_number VARCHAR(50),
+        tts_provider VARCHAR(50) DEFAULT 'elevenlabs',
         elevenlabs_api_key VARCHAR(255),
         elevenlabs_voice_id VARCHAR(255),
+        azure_speech_key VARCHAR(255),
+        azure_speech_region VARCHAR(50) DEFAULT 'germanywestcentral',
+        azure_voice_id VARCHAR(100) DEFAULT 'de-DE-ConradNeural',
         openai_api_key VARCHAR(255),
         openai_model VARCHAR(50) DEFAULT 'gpt-4',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -120,14 +146,34 @@ async function initDatabase() {
       )
     `);
 
-    // Sipgate-Spalten hinzufügen falls sie fehlen (für bestehende Datenbanken)
+    // Settings-Spalten hinzufügen falls sie fehlen (für bestehende Datenbanken)
     await client.query(`
       DO $$ BEGIN
         ALTER TABLE settings ADD COLUMN IF NOT EXISTS telephony_provider VARCHAR(50) DEFAULT 'twilio';
-        ALTER TABLE settings ADD COLUMN IF NOT EXISTS sipgate_client_id VARCHAR(255);
-        ALTER TABLE settings ADD COLUMN IF NOT EXISTS sipgate_client_secret VARCHAR(255);
+        ALTER TABLE settings ADD COLUMN IF NOT EXISTS sipgate_token_id VARCHAR(255);
+        ALTER TABLE settings ADD COLUMN IF NOT EXISTS sipgate_token VARCHAR(255);
         ALTER TABLE settings ADD COLUMN IF NOT EXISTS sipgate_phone_number VARCHAR(50);
         ALTER TABLE settings ADD COLUMN IF NOT EXISTS sipgate_device_id VARCHAR(50) DEFAULT 'p0';
+        ALTER TABLE settings ADD COLUMN IF NOT EXISTS vonage_api_key VARCHAR(255);
+        ALTER TABLE settings ADD COLUMN IF NOT EXISTS vonage_api_secret VARCHAR(255);
+        ALTER TABLE settings ADD COLUMN IF NOT EXISTS vonage_application_id VARCHAR(255);
+        ALTER TABLE settings ADD COLUMN IF NOT EXISTS vonage_private_key TEXT;
+        ALTER TABLE settings ADD COLUMN IF NOT EXISTS vonage_phone_number VARCHAR(50);
+        ALTER TABLE settings ADD COLUMN IF NOT EXISTS tts_provider VARCHAR(50) DEFAULT 'elevenlabs';
+        ALTER TABLE settings ADD COLUMN IF NOT EXISTS azure_speech_key VARCHAR(255);
+        ALTER TABLE settings ADD COLUMN IF NOT EXISTS azure_speech_region VARCHAR(50) DEFAULT 'germanywestcentral';
+        ALTER TABLE settings ADD COLUMN IF NOT EXISTS azure_voice_id VARCHAR(100) DEFAULT 'de-DE-ConradNeural';
+      END $$;
+    `);
+
+    // Campaign-Spalten hinzufügen falls sie fehlen (für bestehende Datenbanken)
+    await client.query(`
+      DO $$ BEGIN
+        ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS agent_id INTEGER;
+        ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS language VARCHAR(10) DEFAULT 'de-DE';
+        ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS system_prompt TEXT;
+        ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS greeting TEXT;
+        ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS closing_script TEXT;
       END $$;
     `);
 

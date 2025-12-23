@@ -22,12 +22,21 @@ export default function Settings() {
     twilio_account_sid: '',
     twilio_auth_token: '',
     twilio_phone_number: '',
-    sipgate_client_id: '',
-    sipgate_client_secret: '',
+    sipgate_token_id: '',
+    sipgate_token: '',
     sipgate_phone_number: '',
     sipgate_device_id: 'p0',
+    vonage_api_key: '',
+    vonage_api_secret: '',
+    vonage_application_id: '',
+    vonage_private_key: '',
+    vonage_phone_number: '',
+    tts_provider: 'azure',
     elevenlabs_api_key: '',
     elevenlabs_voice_id: '',
+    azure_speech_key: '',
+    azure_speech_region: 'germanywestcentral',
+    azure_voice_id: 'de-DE-ConradNeural',
     openai_api_key: '',
     openai_model: 'gpt-4'
   })
@@ -36,6 +45,7 @@ export default function Settings() {
   const [showSecrets, setShowSecrets] = useState({})
   const [testResults, setTestResults] = useState({})
   const [voices, setVoices] = useState([])
+  const [azureVoices, setAzureVoices] = useState([])
   const [sipgateNumbers, setSipgateNumbers] = useState([])
   const [sipgateDevices, setSipgateDevices] = useState([])
 
@@ -89,6 +99,15 @@ export default function Settings() {
     }
   }
 
+  const loadAzureVoices = async () => {
+    try {
+      const res = await api.get('/settings/azure/voices')
+      setAzureVoices(res.data)
+    } catch (error) {
+      console.error('Error loading Azure voices:', error)
+    }
+  }
+
   const loadSipgateNumbers = async () => {
     try {
       const res = await api.get('/settings/sipgate/numbers')
@@ -134,8 +153,8 @@ export default function Settings() {
           title="Telefonie-Provider"
           description="Wähle deinen Telefonie-Anbieter"
         >
-          <div className="flex gap-4">
-            <label className={`flex-1 p-4 border rounded-lg cursor-pointer transition-colors ${
+          <div className="grid grid-cols-3 gap-4">
+            <label className={`p-4 border rounded-lg cursor-pointer transition-colors ${
               settings.telephony_provider === 'twilio'
                 ? 'border-blue-500 bg-blue-900/30'
                 : 'border-gray-600 hover:border-gray-500'
@@ -164,7 +183,7 @@ export default function Settings() {
                 </div>
               </div>
             </label>
-            <label className={`flex-1 p-4 border rounded-lg cursor-pointer transition-colors ${
+            <label className={`p-4 border rounded-lg cursor-pointer transition-colors ${
               settings.telephony_provider === 'sipgate'
                 ? 'border-blue-500 bg-blue-900/30'
                 : 'border-gray-600 hover:border-gray-500'
@@ -190,6 +209,35 @@ export default function Settings() {
                 <div>
                   <span className="font-medium">Sipgate</span>
                   <p className="text-sm text-gray-400">Deutscher VoIP-Anbieter</p>
+                </div>
+              </div>
+            </label>
+            <label className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+              settings.telephony_provider === 'vonage'
+                ? 'border-blue-500 bg-blue-900/30'
+                : 'border-gray-600 hover:border-gray-500'
+            }`}>
+              <input
+                type="radio"
+                name="telephony_provider"
+                value="vonage"
+                checked={settings.telephony_provider === 'vonage'}
+                onChange={(e) => updateSetting('telephony_provider', e.target.value)}
+                className="sr-only"
+              />
+              <div className="flex items-center gap-3">
+                <div className={`w-4 h-4 rounded-full border-2 ${
+                  settings.telephony_provider === 'vonage'
+                    ? 'border-blue-500 bg-blue-500'
+                    : 'border-gray-500'
+                }`}>
+                  {settings.telephony_provider === 'vonage' && (
+                    <div className="w-2 h-2 bg-white rounded-full m-0.5"></div>
+                  )}
+                </div>
+                <div>
+                  <span className="font-medium">Vonage</span>
+                  <p className="text-sm text-gray-400">Ehem. Nexmo</p>
                 </div>
               </div>
             </label>
@@ -239,19 +287,19 @@ export default function Settings() {
             description="Deutscher VoIP-Anbieter"
           >
             <SettingInput
-              label="Client ID"
-              value={settings.sipgate_client_id}
-              onChange={(v) => updateSetting('sipgate_client_id', v)}
-              placeholder="xxxxxx-x-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx:third-party"
+              label="Token ID"
+              value={settings.sipgate_token_id}
+              onChange={(v) => updateSetting('sipgate_token_id', v)}
+              placeholder="token-XXXXXX"
             />
             <SettingInput
-              label="Client Secret"
-              value={settings.sipgate_client_secret}
-              onChange={(v) => updateSetting('sipgate_client_secret', v)}
-              placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              label="Token"
+              value={settings.sipgate_token}
+              onChange={(v) => updateSetting('sipgate_token', v)}
+              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
               secret
-              showSecret={showSecrets.sipgate_client_secret}
-              onToggleSecret={() => toggleSecret('sipgate_client_secret')}
+              showSecret={showSecrets.sipgate_token}
+              onToggleSecret={() => toggleSecret('sipgate_token')}
             />
             <div className="flex gap-2 items-end">
               <div className="flex-1">
@@ -328,60 +376,250 @@ export default function Settings() {
           </SettingsSection>
         )}
 
-        {/* ElevenLabs Settings */}
+        {/* Vonage Settings */}
+        {settings.telephony_provider === 'vonage' && (
+          <SettingsSection
+            icon={Phone}
+            title="Vonage"
+            description="Ehemals Nexmo - Globaler Communications Provider"
+          >
+            <SettingInput
+              label="API Key"
+              value={settings.vonage_api_key}
+              onChange={(v) => updateSetting('vonage_api_key', v)}
+              placeholder="xxxxxxxx"
+            />
+            <SettingInput
+              label="API Secret"
+              value={settings.vonage_api_secret}
+              onChange={(v) => updateSetting('vonage_api_secret', v)}
+              placeholder="xxxxxxxxxxxxxxxx"
+              secret
+              showSecret={showSecrets.vonage_api_secret}
+              onToggleSecret={() => toggleSecret('vonage_api_secret')}
+            />
+            <SettingInput
+              label="Application ID"
+              value={settings.vonage_application_id}
+              onChange={(v) => updateSetting('vonage_application_id', v)}
+              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+            />
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Private Key</label>
+              <textarea
+                value={settings.vonage_private_key}
+                onChange={(e) => updateSetting('vonage_private_key', e.target.value)}
+                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-blue-500 font-mono text-sm"
+                rows={4}
+                placeholder="-----BEGIN PRIVATE KEY-----"
+              />
+            </div>
+            <SettingInput
+              label="Telefonnummer"
+              value={settings.vonage_phone_number}
+              onChange={(v) => updateSetting('vonage_phone_number', v)}
+              placeholder="+49..."
+            />
+            <TestButton
+              onClick={() => handleTest('vonage')}
+              result={testResults.vonage}
+            />
+          </SettingsSection>
+        )}
+
+        {/* TTS Provider Selection */}
         <SettingsSection
           icon={Volume2}
-          title="ElevenLabs"
-          description="Text-to-Speech für realistische Stimme"
+          title="Text-to-Speech Provider"
+          description="Wähle deinen Stimm-Anbieter"
         >
-          <SettingInput
-            label="API Key"
-            value={settings.elevenlabs_api_key}
-            onChange={(v) => updateSetting('elevenlabs_api_key', v)}
-            placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-            secret
-            showSecret={showSecrets.elevenlabs_api_key}
-            onToggleSecret={() => toggleSecret('elevenlabs_api_key')}
-          />
-          <div className="flex gap-2 items-end">
-            <div className="flex-1">
-              <label className="block text-sm text-gray-400 mb-1">Voice ID</label>
-              {voices.length > 0 ? (
+          <div className="flex gap-4">
+            <label className={`flex-1 p-4 border rounded-lg cursor-pointer transition-colors ${
+              settings.tts_provider === 'azure'
+                ? 'border-blue-500 bg-blue-900/30'
+                : 'border-gray-600 hover:border-gray-500'
+            }`}>
+              <input
+                type="radio"
+                name="tts_provider"
+                value="azure"
+                checked={settings.tts_provider === 'azure'}
+                onChange={(e) => updateSetting('tts_provider', e.target.value)}
+                className="sr-only"
+              />
+              <div className="flex items-center gap-3">
+                <div className={`w-4 h-4 rounded-full border-2 ${
+                  settings.tts_provider === 'azure'
+                    ? 'border-blue-500 bg-blue-500'
+                    : 'border-gray-500'
+                }`}>
+                  {settings.tts_provider === 'azure' && (
+                    <div className="w-2 h-2 bg-white rounded-full m-0.5"></div>
+                  )}
+                </div>
+                <div>
+                  <span className="font-medium">Azure (Empfohlen)</span>
+                  <p className="text-sm text-gray-400">Deutsche Neural Voices, kostenlos</p>
+                </div>
+              </div>
+            </label>
+            <label className={`flex-1 p-4 border rounded-lg cursor-pointer transition-colors ${
+              settings.tts_provider === 'elevenlabs'
+                ? 'border-blue-500 bg-blue-900/30'
+                : 'border-gray-600 hover:border-gray-500'
+            }`}>
+              <input
+                type="radio"
+                name="tts_provider"
+                value="elevenlabs"
+                checked={settings.tts_provider === 'elevenlabs'}
+                onChange={(e) => updateSetting('tts_provider', e.target.value)}
+                className="sr-only"
+              />
+              <div className="flex items-center gap-3">
+                <div className={`w-4 h-4 rounded-full border-2 ${
+                  settings.tts_provider === 'elevenlabs'
+                    ? 'border-blue-500 bg-blue-500'
+                    : 'border-gray-500'
+                }`}>
+                  {settings.tts_provider === 'elevenlabs' && (
+                    <div className="w-2 h-2 bg-white rounded-full m-0.5"></div>
+                  )}
+                </div>
+                <div>
+                  <span className="font-medium">ElevenLabs</span>
+                  <p className="text-sm text-gray-400">Premium Stimmen, kostenpflichtig</p>
+                </div>
+              </div>
+            </label>
+          </div>
+        </SettingsSection>
+
+        {/* Azure TTS Settings */}
+        {settings.tts_provider === 'azure' && (
+          <SettingsSection
+            icon={Volume2}
+            title="Azure Speech"
+            description="Microsoft Neural Text-to-Speech"
+          >
+            <SettingInput
+              label="Speech Key"
+              value={settings.azure_speech_key}
+              onChange={(v) => updateSetting('azure_speech_key', v)}
+              placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              secret
+              showSecret={showSecrets.azure_speech_key}
+              onToggleSecret={() => toggleSecret('azure_speech_key')}
+            />
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Region</label>
+              <select
+                value={settings.azure_speech_region}
+                onChange={(e) => updateSetting('azure_speech_region', e.target.value)}
+                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-blue-500"
+              >
+                <option value="germanywestcentral">Germany West Central (empfohlen)</option>
+                <option value="westeurope">West Europe</option>
+                <option value="northeurope">North Europe</option>
+                <option value="eastus">East US</option>
+                <option value="westus">West US</option>
+              </select>
+            </div>
+            <div className="flex gap-2 items-end">
+              <div className="flex-1">
+                <label className="block text-sm text-gray-400 mb-1">Deutsche Stimme</label>
                 <select
-                  value={settings.elevenlabs_voice_id}
-                  onChange={(e) => updateSetting('elevenlabs_voice_id', e.target.value)}
+                  value={settings.azure_voice_id}
+                  onChange={(e) => updateSetting('azure_voice_id', e.target.value)}
                   className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-blue-500"
                 >
-                  <option value="">Stimme wählen...</option>
-                  {voices.map(v => (
-                    <option key={v.voice_id} value={v.voice_id}>
-                      {v.name} ({v.labels?.accent || 'Standard'})
-                    </option>
-                  ))}
+                  <optgroup label="Männlich">
+                    <option value="de-DE-ConradNeural">Conrad - Freundlich, natürlich</option>
+                    <option value="de-DE-BerndNeural">Bernd - Seriös, geschäftlich</option>
+                    <option value="de-DE-ChristophNeural">Christoph - Jung, dynamisch</option>
+                    <option value="de-DE-KasperNeural">Kasper - Energisch, überzeugend</option>
+                    <option value="de-DE-KillianNeural">Killian - Warm, beruhigend</option>
+                    <option value="de-DE-KlausNeural">Klaus - Autoritär, kompetent</option>
+                    <option value="de-DE-RalfNeural">Ralf - Entspannt, locker</option>
+                    <option value="de-DE-FlorianMultilingualNeural">Florian - Multilingual</option>
+                  </optgroup>
+                  <optgroup label="Weiblich">
+                    <option value="de-DE-KatjaNeural">Katja - Professionell, klar</option>
+                    <option value="de-DE-AmalaNeural">Amala - Warm, freundlich</option>
+                    <option value="de-DE-ElkeNeural">Elke - Freundlich, einladend</option>
+                    <option value="de-DE-GiselaNeural">Gisela - Reif, vertrauenswürdig</option>
+                    <option value="de-DE-KlarissaNeural">Klarissa - Hell, freundlich</option>
+                    <option value="de-DE-LouisaNeural">Louisa - Jung, modern</option>
+                    <option value="de-DE-MajaNeural">Maja - Lebhaft, enthusiastisch</option>
+                    <option value="de-DE-TanjaNeural">Tanja - Professionell, klar</option>
+                    <option value="de-DE-SeraphinaMultilingualNeural">Seraphina - Multilingual</option>
+                  </optgroup>
                 </select>
-              ) : (
-                <input
-                  type="text"
-                  value={settings.elevenlabs_voice_id}
-                  onChange={(e) => updateSetting('elevenlabs_voice_id', e.target.value)}
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-blue-500"
-                  placeholder="Voice ID"
-                />
-              )}
+              </div>
             </div>
-            <button
-              onClick={loadVoices}
-              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
-              title="Stimmen laden"
-            >
-              <RefreshCw size={18} />
-            </button>
-          </div>
-          <TestButton
-            onClick={() => handleTest('elevenlabs')}
-            result={testResults.elevenlabs}
-          />
-        </SettingsSection>
+            <TestButton
+              onClick={() => handleTest('azure')}
+              result={testResults.azure}
+            />
+          </SettingsSection>
+        )}
+
+        {/* ElevenLabs Settings */}
+        {settings.tts_provider === 'elevenlabs' && (
+          <SettingsSection
+            icon={Volume2}
+            title="ElevenLabs"
+            description="Text-to-Speech für realistische Stimme"
+          >
+            <SettingInput
+              label="API Key"
+              value={settings.elevenlabs_api_key}
+              onChange={(v) => updateSetting('elevenlabs_api_key', v)}
+              placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              secret
+              showSecret={showSecrets.elevenlabs_api_key}
+              onToggleSecret={() => toggleSecret('elevenlabs_api_key')}
+            />
+            <div className="flex gap-2 items-end">
+              <div className="flex-1">
+                <label className="block text-sm text-gray-400 mb-1">Voice ID</label>
+                {voices.length > 0 ? (
+                  <select
+                    value={settings.elevenlabs_voice_id}
+                    onChange={(e) => updateSetting('elevenlabs_voice_id', e.target.value)}
+                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="">Stimme wählen...</option>
+                    {voices.map(v => (
+                      <option key={v.voice_id} value={v.voice_id}>
+                        {v.name} ({v.labels?.accent || 'Standard'})
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={settings.elevenlabs_voice_id}
+                    onChange={(e) => updateSetting('elevenlabs_voice_id', e.target.value)}
+                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-blue-500"
+                    placeholder="Voice ID"
+                  />
+                )}
+              </div>
+              <button
+                onClick={loadVoices}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+                title="Stimmen laden"
+              >
+                <RefreshCw size={18} />
+              </button>
+            </div>
+            <TestButton
+              onClick={() => handleTest('elevenlabs')}
+              result={testResults.elevenlabs}
+            />
+          </SettingsSection>
+        )}
 
         {/* OpenAI Settings */}
         <SettingsSection

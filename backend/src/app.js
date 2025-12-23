@@ -12,6 +12,7 @@ const promptRoutes = require('./api/prompts');
 const uploadRoutes = require('./api/upload');
 const statsRoutes = require('./api/stats');
 const settingsRoutes = require('./api/settings');
+const agentsRoutes = require('./api/agents');
 const twilioWebhooks = require('./webhooks/twilio');
 
 const app = express();
@@ -44,6 +45,7 @@ app.use('/api/prompts', authMiddleware, promptRoutes);
 app.use('/api/upload', authMiddleware, uploadRoutes);
 app.use('/api/stats', authMiddleware, statsRoutes);
 app.use('/api/settings', authMiddleware, settingsRoutes);
+app.use('/api/agents', authMiddleware, agentsRoutes);
 
 // Twilio Webhooks (kein /api prefix für Twilio)
 app.use('/webhooks/twilio', twilioWebhooks);
