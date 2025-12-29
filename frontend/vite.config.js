@@ -7,11 +7,11 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
+        target: process.env.VITE_BACKEND_URL || 'http://localhost:3001',
         changeOrigin: true
       },
       '/ws': {
-        target: 'ws://localhost:3001',
+        target: (process.env.VITE_BACKEND_URL || 'http://localhost:3001').replace('http', 'ws'),
         ws: true
       }
     }
